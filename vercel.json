@@ -2,9 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "experimentalServices": {
     "web": {
-      "entrypoint": "apps/web",
-      "routePrefix": "/",
-      "framework": null
+      "entrypoint": "apps/web/index.html",
+      "routePrefix": "/"
     }
   }
 }

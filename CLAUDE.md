@@ -79,28 +79,30 @@ Without `-L`, `vercel dev` proxies through Vercel Cloud and needs authentication
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "experimentalServices": {
     "web": {
-      "entrypoint": "apps/web",
-      "routePrefix": "/",
-      "framework": null
+      "entrypoint": "apps/web/index.html",
+      "routePrefix": "/"
     }
   }
 }
 ```
 
-### Why `framework: null`
+### Why a file entrypoint for the static site
 
-Top-level `framework: null` is documented as "select Other / no framework." Per-service `framework: null` is **not explicitly documented** — it's the natural extension of the same convention, and it's the minimal change that should let a directory entrypoint deploy without auto-detection.
+`framework` on a service **must be a string slug** — Vercel's schema rejects `null` here (verified by build error: `experimentalServices.web.framework should be string`). The top-level `framework: null` convention does **not** extend per-service. For a plain-HTML service with no framework to pin, the only working path is a **file entrypoint** (`apps/web/index.html`), which Vercel treats as static and ships alongside its sibling assets in the same directory.
 
-If a future Vercel build rejects `null` per-service, the **documented fallback** (from the error message itself) is a **file entrypoint**:
+If/when sibling files outside `apps/web/` are needed, add an `includeFiles` glob to the service.
 
-```json
-"web": {
-  "entrypoint": "apps/web/index.html",
-  "routePrefix": "/"
-}
-```
+## Known deploy failures (and what fixed them)
 
-Don't switch preemptively — only if `framework: null` stops working.
+Record real errors here so the next agent doesn't re-derive them. Each row is an error we hit, not a hypothetical.
+
+| Build error                                                                                                                                | Root cause                                                              | Fix                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `Framework "Services" requires defining at least one service in experimentalServices`                                                      | Dashboard framework is "Services" but `vercel.json` doesn't declare any | Add `experimentalServices: { ... }` with at least one service to `vercel.json`.                  |
+| `Service "X" uses directory entrypoint "<dir>" but no framework could be detected. Specify "framework" explicitly or use a file entrypoint.` | Directory entrypoint with no auto-detectable framework manifest         | For static: switch to a file entrypoint. For a real framework: pin the slug (`"framework": "nextjs"`). |
+| `vercel.json schema validation failed: experimentalServices.web.framework should be string`                                                | Tried `"framework": null` per-service (extending top-level convention)  | Per-service `framework` must be a string slug. Omit the field for static; use a slug otherwise.   |
+
+**General rule:** read the Vercel build log error verbatim — Vercel's errors are unusually specific and usually point at the documented fix. Don't guess at config values; check the docs or test locally with `vercel build` before pushing another commit.
 
 ## Adding a new service
 
@@ -175,7 +177,14 @@ TanStack Start on Vercel requires the [Nitro Vite plugin](https://vercel.com/doc
 | Add a new service             | New `apps/<name>/` + entry in `vercel.json`                      |
 | Change service routing        | `vercel.json` only — do not move directories                     |
 | Debug deployment failure      | Read the Vercel build log error verbatim; check `framework` slug |
+| Validate before push          | `npx vercel build` (offline) or `npx vercel dev -L`              |
 | Run everything locally        | `vercel dev -L` from repo root                                   |
+
+## Workflow notes for agents
+
+- **Validate `vercel.json` locally before pushing.** `npx vercel build` runs the same schema validation Vercel runs in CI, with no auth required. One push-fail-push-fail cycle wastes more time than the local validation costs.
+- **Don't invent config syntax by analogy.** Top-level conventions don't always extend per-service. When in doubt, check [vercel.com/docs/services](https://vercel.com/docs/services) or fetch the JSON schema (`https://openapi.vercel.sh/vercel.json`) directly.
+- **Trust the error message.** Vercel's build errors include the documented alternative ("Specify framework explicitly or use a file entrypoint"). Follow the literal instruction before researching workarounds.
 
 ## Git workflow
 
