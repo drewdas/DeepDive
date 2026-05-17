@@ -177,12 +177,15 @@ TanStack Start on Vercel requires the [Nitro Vite plugin](https://vercel.com/doc
 | Add a new service             | New `apps/<name>/` + entry in `vercel.json`                      |
 | Change service routing        | `vercel.json` only — do not move directories                     |
 | Debug deployment failure      | Read the Vercel build log error verbatim; check `framework` slug |
-| Validate before push          | `npx vercel build` (offline) or `npx vercel dev -L`              |
+| Validate before push          | `/vercel-preflight` (runs all checks + `npx vercel build`)       |
+| Scaffold a new service        | `/vercel-add-service` (interactive; uses planned-service shapes) |
+| Run integrity checks manually | `python3 tests/<check>.py` — see `tests/README.md`               |
 | Run everything locally        | `vercel dev -L` from repo root                                   |
 
 ## Workflow notes for agents
 
-- **Validate `vercel.json` locally before pushing.** `npx vercel build` runs the same schema validation Vercel runs in CI, with no auth required. One push-fail-push-fail cycle wastes more time than the local validation costs.
+- **Run `/vercel-preflight` before every push that touches `vercel.json` or `apps/`.** It runs the four integrity checks in `tests/` plus `npx vercel build`, which mirrors what Vercel CI does. One push-fail-push-fail cycle wastes more time than the local validation costs.
+- **Validate `vercel.json` locally before pushing.** `npx vercel build` runs the same schema validation Vercel runs in CI, with no auth required.
 - **Don't invent config syntax by analogy.** Top-level conventions don't always extend per-service. When in doubt, check [vercel.com/docs/services](https://vercel.com/docs/services) or fetch the JSON schema (`https://openapi.vercel.sh/vercel.json`) directly.
 - **Trust the error message.** Vercel's build errors include the documented alternative ("Specify framework explicitly or use a file entrypoint"). Follow the literal instruction before researching workarounds.
 
