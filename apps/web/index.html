@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeepDive — Advancing Deep Search Agents with Knowledge Graphs and Multi-Turn RL</title>
+<meta name="description" content="DeepDive presents an automated approach for training deep search agents that navigate complex, multi-step information-seeking tasks via knowledge graphs and multi-turn reinforcement learning." />
+<link rel="stylesheet" href="styles.css" />
+<script type="text/javascript" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a class="brand" href="#top">DeepDive</a>
+    <ul class="nav-links">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#scaling">Scaling</a></li>
+      <li><a href="#data">Data</a></li>
+      <li><a href="#citation">Citation</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="container">
+      <p class="eyebrow">arXiv 2509.10446 · THUDM</p>
+      <h1>DeepDive</h1>
+      <p class="subtitle">Advancing Deep Search Agents with Knowledge Graphs and Multi-Turn RL</p>
+
+      <div class="badges">
+        <a class="badge" href="https://github.com/THUDM/DeepDive" target="_blank" rel="noopener">★ GitHub</a>
+        <a class="badge badge-arxiv" href="https://arxiv.org/pdf/2509.10446" target="_blank" rel="noopener">arXiv 2509.10446</a>
+        <a class="badge badge-hf" href="https://huggingface.co/datasets/zai-org/DeepDive" target="_blank" rel="noopener">🤗 Dataset</a>
+        <span class="badge badge-soon">🤗 Model · Coming soon</span>
+      </div>
+
+      <div class="hero-figure">
+        <img src="assets/combine_head_figure.svg" alt="Multi-Turn RL Training overview" />
+      </div>
+    </div>
+  </section>
+
+  <section id="news" class="section section-alt">
+    <div class="container">
+      <h2>🔥 News</h2>
+      <ul class="news-list">
+        <li><span class="news-date">2025/10/02</span> Released the complete <a href="https://github.com/THUDM/DeepDive/tree/main/qa_synthetic" target="_blank" rel="noopener">data construction pipeline</a> — now fully available in the repository.</li>
+        <li><span class="news-date">2025/09/17</span> QA pairs and SFT trajectories have been fully open-sourced, totaling 4,108 entries. Check them out on <a href="https://huggingface.co/datasets/zai-org/DeepDive" target="_blank" rel="noopener">Hugging Face</a>.</li>
+        <li><span class="news-date">Soon</span> Model weights and training code under development — coming soon.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="overview" class="section">
+    <div class="container">
+      <h2>Overview</h2>
+      <p class="lead">
+        <strong>DeepDive</strong> presents an automated approach for training deep search agents that can navigate complex, multi-step information-seeking tasks. The method combines automated data synthesis from knowledge graphs with end-to-end multi-turn reinforcement learning to create agents capable of sophisticated long-horizon reasoning and web browsing.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon">🧭</div>
+          <h3>Automated Data Synthesis</h3>
+          <p>Generate challenging multi-hop QA pairs from knowledge graphs through controlled random walks and entity obfuscation.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🎯</div>
+          <h3>Multi-Turn RL for Browsing</h3>
+          <p>End-to-end reinforcement learning with strict binary rewards for deep search capabilities.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📈</div>
+          <h3>Test-Time Scaling</h3>
+          <p>Supports scaling through additional tool calls and parallel sampling across reasoning trajectories.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="method" class="section section-alt">
+    <div class="container">
+      <h2>Method Overview</h2>
+
+      <div class="stage">
+        <h3>Stage 1 · Automated Data Synthesis from Knowledge Graphs</h3>
+        <figure>
+          <img src="assets/kg_data_pipeline.svg" alt="Data Synthesis Pipeline" />
+        </figure>
+        <p>
+          We synthesize complex, hard-to-find questions from open knowledge graphs in three steps:
+        </p>
+
+        <ol class="steps">
+          <li>
+            <strong>Knowledge Graph Random Walks.</strong> Starting from an initial node $v_0$, we navigate the graph for $k$ steps to form a path
+            $P=[v_0, v_1, \ldots, v_k]$, where each step $(v_i, v_{i+1})$ is a valid edge. We choose longer path lengths ($k > 5$) to increase reasoning complexity.
+          </li>
+          <li>
+            <strong>Entity Obfuscation.</strong> We combine each node $v_i$ with its attributes to form an attribute-rich path:
+            $$P_A = [(v_0, [a_0^0, a_0^1, \ldots]), (v_1, [a_1^0, a_1^1, \ldots]), \ldots, (v_k, [a_k^0, a_k^1, \ldots])]$$
+            An LLM then obfuscates information along the entire path, creating "blurry entities" that require deep search to resolve.
+          </li>
+          <li>
+            <strong>Difficulty Filtering.</strong> We use a frontier model (GPT-4o) with basic search to attempt each question four times. Only questions the frontier model fails in all attempts are retained.
+          </li>
+        </ol>
+      </div>
+
+      <div class="stage">
+        <h3>Stage 2 · End-to-End Multi-Turn Reinforcement Learning</h3>
+        <figure>
+          <img src="assets/deepdive_rl.svg" alt="Multi-Turn RL Training" />
+        </figure>
+        <p>
+          At step $t$, the agent generates chain-of-thought $c_t$, executes browsing action $a_t$, and observes web content $o_t$.
+        </p>
+
+        <p><strong>Multi-Turn GRPO Training.</strong> We employ Group Relative Policy Optimization with normalized advantages:</p>
+        $$A_i = \frac{r_i - \text{mean}(\{r_k\}_{k=1}^G)}{\text{std}(\{r_k\}_{k=1}^G)}$$
+
+        <p><strong>Strict Binary Rewards.</strong> A trajectory receives reward +1 if and only if both format correctness and answer accuracy are satisfied:</p>
+        $$
+        r(\mathcal{T}) = \begin{cases} 1, & (\forall i, \text{Format}(c_i, a_i)) \wedge \text{Judge}(a_{\text{eos}}, a^*) \\ 0, & \text{otherwise} \end{cases}
+        $$
+        <p>This strict reward mechanism ensures high-quality trajectories and prevents reward hacking.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="models" class="section">
+    <div class="container">
+      <h2>Models</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Parameters</th>
+              <th>HuggingFace Hub</th>
+              <th>Performance (BrowseComp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>DeepDive-9B</strong></td><td>9B</td><td><span class="pill">coming soon</span></td><td>6.3%</td></tr>
+            <tr><td><strong>DeepDive-32B</strong></td><td>32B</td><td><span class="pill">coming soon</span></td><td><strong>14.8%</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="data" class="section section-alt">
+    <div class="container">
+      <h2>Data</h2>
+      <p>
+        Our automated data synthesis pipeline creates challenging QA pairs through knowledge graph random walks, entity obfuscation, and difficulty filtering. The process uses multi-hop paths ($k = 5\text{–}9$) through KILT and AMiner knowledge graphs.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Component</th><th>Size</th><th>Explanation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Total Dataset</td><td>3,250</td><td>All QA pairs in the training corpus</td></tr>
+            <tr><td>SFT Portion</td><td>1,016</td><td>Subset used for Supervised Fine-Tuning (SFT)</td></tr>
+            <tr><td>↳ SFT Trajectories</td><td>858</td><td>Search traces from the SFT QA pairs via reject sampling</td></tr>
+            <tr><td>RL Portion</td><td>2,234</td><td>Subset used for Reinforcement Learning (RL)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Data Example</h3>
+      <figure>
+        <img src="assets/data_example.svg" alt="Data Example" />
+      </figure>
+    </div>
+  </section>
+
+  <section id="results" class="section">
+    <div class="container">
+      <h2>Results</h2>
+      <p>
+        We evaluate DeepDive on four challenging deep search benchmarks: BrowseComp, BrowseComp-ZH, Xbench-DeepSearch, and SEAL-0. Results show consistent improvements over existing open-source models.
+      </p>
+
+      <div class="table-wrap">
+        <table class="results">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Reason</th>
+              <th>Browse</th>
+              <th>BrowseComp</th>
+              <th>BrowseComp-ZH</th>
+              <th>Xbench-DeepSearch</th>
+              <th>SEAL-0</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="group"><td colspan="7">Proprietary Models</td></tr>
+            <tr><td>GPT-4o</td><td>✗</td><td>✗</td><td>0.9*</td><td>11.1</td><td>18.0*</td><td>0.9</td></tr>
+            <tr><td>GPT-4o†</td><td>✗</td><td>✓</td><td>1.9*</td><td>12.8</td><td>30.0</td><td>9.1</td></tr>
+            <tr><td>Claude-3.7-Sonnet</td><td>✗</td><td>✗</td><td>2.3</td><td>11.8</td><td>12.0</td><td>2.7</td></tr>
+            <tr><td>Claude-3.7-Sonnet†</td><td>✗</td><td>✓</td><td>4.5</td><td>14.2</td><td>29.0</td><td>14.4</td></tr>
+            <tr><td>o1</td><td>✓</td><td>✗</td><td><em>9.9*</em></td><td><em>29.1*</em></td><td>38.0</td><td>11.7</td></tr>
+            <tr><td>o4-mini</td><td>✓</td><td>✗</td><td>6.1*</td><td>15.2*</td><td>22.3*</td><td>2.7</td></tr>
+            <tr><td>Claude-4-Sonnet-Thinking</td><td>✓</td><td>✓</td><td>2.6</td><td>21.5</td><td>27.0</td><td>9.0</td></tr>
+            <tr><td>Claude-4-Sonnet-Thinking†</td><td>✓</td><td>✗</td><td>14.7</td><td>30.8</td><td>53.0</td><td>37.8</td></tr>
+            <tr><td>Grok-DeepResearch</td><td>✓</td><td>✓</td><td>—</td><td>12.9*</td><td><em>50+</em></td><td>—</td></tr>
+            <tr><td>Doubao-DeepThink</td><td>✓</td><td>✓</td><td>—</td><td>26.0*</td><td><em>50+</em></td><td>—</td></tr>
+            <tr><td>DeepResearch</td><td>✓</td><td>✓</td><td><strong>51.5*</strong></td><td><strong>42.9*</strong></td><td>—</td><td>—</td></tr>
+
+            <tr class="group"><td colspan="7">Open-Source Models</td></tr>
+            <tr><td>GLM-Z1-9B-0414</td><td>✗</td><td>✗</td><td>0.6</td><td>2.4</td><td>8.0</td><td>7.2</td></tr>
+            <tr><td>GLM-Z1-9B-0414†</td><td>✗</td><td>✓</td><td>0.6</td><td>1.7</td><td>3.0</td><td>2.7</td></tr>
+            <tr><td>Qwen2.5-32B-Instruct</td><td>✗</td><td>✗</td><td>0.6</td><td>9.3</td><td>8.7*</td><td>2.7</td></tr>
+            <tr><td>Qwen2.5-32B-Instruct†</td><td>✗</td><td>✓</td><td>1.5</td><td>1.7</td><td>12.0</td><td>0.9</td></tr>
+            <tr><td>Qwen3-235B-A22B-Instruct-2507</td><td>✗</td><td>✗</td><td>0.9</td><td>17.6</td><td>17.0</td><td>6.3</td></tr>
+            <tr><td>Qwen3-235B-A22B-Instruct-2507†</td><td>✗</td><td>✓</td><td>0.9</td><td>14.9</td><td>26.0</td><td>9.1</td></tr>
+            <tr><td>Qwen3-235B-A22B-Thinking-2507</td><td>✗</td><td>✗</td><td>3.1</td><td>20.1</td><td>22.0</td><td>9.0</td></tr>
+            <tr><td>Qwen3-235B-A22B-Thinking-2507†</td><td>✗</td><td>✓</td><td>4.6</td><td>22.5</td><td>37.0</td><td>13.5</td></tr>
+            <tr><td>QwQ-32B</td><td>✓</td><td>✗</td><td>1.7</td><td>13.5</td><td>10.7*</td><td>5.4</td></tr>
+            <tr><td>QwQ-32B†</td><td>✓</td><td>✓</td><td>1.3</td><td>14.5</td><td>27.0</td><td>4.5</td></tr>
+            <tr><td>DeepSeek-V3-0324</td><td>✗</td><td>✗</td><td>1.5</td><td>24.6</td><td>36.0</td><td>6.3</td></tr>
+            <tr><td>DeepSeek-R1</td><td>✓</td><td>✗</td><td>2.0</td><td>23.2</td><td>32.7*</td><td>5.4</td></tr>
+            <tr><td>DeepSeek-R1-0528</td><td>✓</td><td>✗</td><td>3.2</td><td>28.7</td><td>37.0</td><td>5.4</td></tr>
+            <tr><td>GLM-4.5-Air</td><td>✓</td><td>✓</td><td>21.3</td><td>36.3</td><td>65.0</td><td>30.6</td></tr>
+            <tr><td>GLM-4.5</td><td>✓</td><td>✓</td><td>26.4</td><td>37.5</td><td>68.0</td><td>36.0</td></tr>
+
+            <tr class="group"><td colspan="7">Web Agents</td></tr>
+            <tr><td>Search-o1-32B</td><td>✓</td><td>✓</td><td>2.8*</td><td>17.9*</td><td>25.0*</td><td>—</td></tr>
+            <tr><td>WebThinker-32B</td><td>✓</td><td>✓</td><td>2.8*</td><td>7.3*</td><td>24.0*</td><td>—</td></tr>
+            <tr><td>WebDancer-32B</td><td>✓</td><td>✓</td><td>3.8*</td><td>18.0*</td><td>39.0*</td><td>—</td></tr>
+            <tr><td>WebSailor-7B</td><td>✓</td><td>✓</td><td>6.7*</td><td>14.2*</td><td>34.3*</td><td>—</td></tr>
+            <tr><td>WebSailor-32B</td><td>✓</td><td>✓</td><td>10.5*</td><td>25.5*</td><td>53.3*</td><td>—</td></tr>
+
+            <tr class="group"><td colspan="7">DeepDive (Ours)</td></tr>
+            <tr><td>DeepDive-9B (sft-only)</td><td>✓</td><td>✓</td><td>5.6</td><td>15.7</td><td>35.0</td><td>15.3</td></tr>
+            <tr><td>DeepDive-9B</td><td>✓</td><td>✓</td><td>6.3</td><td>15.1</td><td>38.0</td><td>12.2</td></tr>
+            <tr><td>DeepDive-32B (sft-only)</td><td>✓</td><td>✓</td><td>9.5</td><td>23.0</td><td>48.5</td><td>23.9</td></tr>
+            <tr class="ours"><td><strong>DeepDive-32B</strong></td><td>✓</td><td>✓</td><td><strong>14.8</strong></td><td><strong>25.6</strong></td><td><strong>50.5</strong></td><td><strong>29.3</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        <strong>Note.</strong> <code>*</code> represents reported performance from existing studies. <code>†</code> represents equipping browsing via function call.
+      </p>
+
+      <h3>Generalization on Simple Search Tasks</h3>
+      <p>
+        DeepDive-32B (SFT and RL) consistently outperforms strong baselines on simpler benchmarks such as HotpotQA, Frames, and WebWalker, achieving more than 60 points on WebWalker — surpassing WebShaper-72B (52.2).
+      </p>
+      <figure class="centered">
+        <img src="assets/easy_task.svg" alt="Generalization on easy tasks" style="max-width:75%" />
+      </figure>
+    </div>
+  </section>
+
+  <section id="scaling" class="section section-alt">
+    <div class="container">
+      <h2>Test-Time Scaling</h2>
+      <p>DeepDive demonstrates remarkable test-time scaling through two mechanisms.</p>
+
+      <h3>Tool Call Scaling</h3>
+      <p>
+        Allowing DeepDive more tool calls during inference leads to higher accuracy on complex, multi-step tasks. On BrowseComp, accuracy improves from 8% at 8 tool calls to 15% at 128 tool calls. DeepDive-32B consistently outperforms its SFT-only variant — especially when the allowed tool calls exceed 32 — indicating that the RL stage better equips the model to use long tool-call horizons.
+      </p>
+      <figure>
+        <img src="assets/tool_call_scaling_combine.svg" alt="Tool call scaling" />
+      </figure>
+
+      <h3>Parallel Sampling</h3>
+      <p>
+        Beyond a larger tool-call budget, DeepDive leverages parallel sampling: for each question, the model generates 8 independent reasoning trajectories. Three selection strategies are considered — single-shot, majority voting, and choosing the answer that required the fewest tool calls.
+      </p>
+      <p>
+        Empirical analysis reveals that answers submitted earlier with fewer tool calls are usually more accurate. Selecting the answer with the minimal tool calls among 8 samples raises accuracy from <strong>12.0%</strong> (single-shot) to <strong>24.8%</strong> — more than doubling performance. Majority voting also helps (18.8%), but is outperformed by minimal tool-call selection.
+      </p>
+      <figure>
+        <img src="assets/parallel_sampling.svg" alt="Parallel sampling" />
+      </figure>
+    </div>
+  </section>
+
+  <section id="iid" class="section">
+    <div class="container">
+      <h2>Additional Study · Semi-Automated i.i.d. Deep Search QA for RL</h2>
+      <p>
+        We create a semi-automated framework for generating i.i.d. QA pairs. Training with i.i.d. data brings larger improvements: the 32B-RL model reaches 22.2% accuracy on BrowseComp (up from 14.8%), with improvements on Chinese benchmarks as well.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Data</th>
+              <th>BrowseComp</th>
+              <th>BrowseComp-ZH</th>
+              <th>Xbench-DeepSearch</th>
+              <th>SEAL-0</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>32B (sft-only)</td><td>KG</td><td>9.5</td><td>23.0</td><td>48.5</td><td>23.9</td></tr>
+            <tr><td>32B</td><td>KG</td><td>14.8</td><td>25.6</td><td>50.5</td><td><strong>29.3</strong></td></tr>
+            <tr><td>32B (sft-only)</td><td>i.i.d.</td><td>11.4</td><td>26.6</td><td>47.5</td><td>22.5</td></tr>
+            <tr class="ours"><td>32B</td><td>i.i.d.</td><td><strong>22.2</strong></td><td><strong>33.9</strong></td><td><strong>56.0</strong></td><td>23.0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="note">
+        Given the contamination analysis, both the KG data and i.i.d. data are adopted by the open
+        <a href="https://z.ai" target="_blank" rel="noopener"><img class="inline-logo" src="assets/z-ai.svg" alt="Z-AI" /></a>
+        <a href="https://z.ai/blog/glm-4.5" target="_blank" rel="noopener">GLM-4.5</a> /
+        <a href="https://z.ai/blog/glm-4.6" target="_blank" rel="noopener">GLM-4.6</a> models, which show strong performance on BrowseComp.
+      </p>
+    </div>
+  </section>
+
+  <section id="acknowledgments" class="section section-alt">
+    <div class="container">
+      <h2>Acknowledgments</h2>
+      <ul class="ack-list">
+        <li>Built on top of <a href="https://github.com/THUDM/GLM-4" target="_blank" rel="noopener">GLM-4</a> and <a href="https://github.com/QwenLM/QwQ" target="_blank" rel="noopener">QwQ</a> base models</li>
+        <li>Uses the <a href="https://github.com/THUDM/slime/" target="_blank" rel="noopener">Slime</a> framework for RL training</li>
+        <li>Powered by <a href="https://serper.dev/" target="_blank" rel="noopener">Serper</a> and <a href="https://jina.ai/" target="_blank" rel="noopener">Jina</a> APIs for web access</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="citation" class="section">
+    <div class="container">
+      <h2>Citation</h2>
+      <p>If you find DeepDive useful for your research, please cite:</p>
+      <pre class="bibtex"><code>@misc{lu2025deepdiveadvancingdeepsearch,
+      title={DeepDive: Advancing Deep Search Agents with Knowledge Graphs and Multi-Turn RL},
+      author={Rui Lu and Zhenyu Hou and Zihan Wang and Hanchen Zhang and Xiao Liu and Yujiang Li and Shi Feng and Jie Tang and Yuxiao Dong},
+      year={2025},
+      eprint={2509.10446},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2509.10446},
+}</code></pre>
+      <button class="copy-btn" id="copy-bibtex" type="button">Copy BibTeX</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>
+      DeepDive · THUDM
+      · <a href="https://arxiv.org/abs/2509.10446" target="_blank" rel="noopener">arXiv</a>
+      · <a href="https://github.com/THUDM/DeepDive" target="_blank" rel="noopener">GitHub</a>
+      · <a href="https://huggingface.co/datasets/zai-org/DeepDive" target="_blank" rel="noopener">Dataset</a>
+    </p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
